@@ -1,10 +1,13 @@
-<section class="mb-4" aria-labelledby="filters-heading">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-        <h2 id="filters-heading" class="h5 mb-0">Filters</h2>
+<section aria-labelledby="history-heading">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h2 id="history-heading" class="h5 mb-1">History</h2>
+            <div class="small text-body-secondary">Latest {{ history_limit }} significant events. Filters apply only to history.</div>
+        </div>
         <span id="filter-indicator" class="spinner-border spinner-border-sm htmx-indicator" aria-label="Loading"></span>
     </div>
 
-    <form id="record-filters" class="row g-3" method="get" action="/">
+    <form id="record-filters" class="row g-3 mb-3" method="get" action="/">
         <div class="col-12 col-lg-5">
             <label for="q" class="form-label">Recording name</label>
             <input id="q"
@@ -63,67 +66,11 @@
             {% endif %}
         </div>
     </form>
-</section>
-
-<section class="mb-4" aria-labelledby="attention-heading">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <h2 id="attention-heading" class="h5 mb-0">Requires attention</h2>
-        {% if filters_active %}
-            <span class="badge text-bg-danger">{{ total_attention }} total / {{ shown_attention }} shown</span>
-        {% else %}
-            <span class="badge text-bg-danger">{{ total_attention }}</span>
-        {% endif %}
-    </div>
-
-    {% if attention_records %}
-    <div class="table-responsive shadow-sm rounded">
-        <table class="table table-hover bg-body mb-0">
-            <thead class="table-light">
-            <tr>
-                <th>Recording</th>
-                <th>Account</th>
-                <th>Status</th>
-                <th>Recorded</th>
-                <th>Problem</th>
-            </tr>
-            </thead>
-            <tbody>
-            {% for recording in attention_records %}
-            <tr class="attention-row">
-                <td>
-                    <div class="fw-semibold">{{ recording.recording_name }}</div>
-                    <div class="small text-body-secondary">ID {{ recording.recording_id }}</div>
-                </td>
-                <td>{{ recording.account.name }}</td>
-                <td><span class="badge {{ recording.status|status_class }}">{{ recording.status }}</span></td>
-                <td class="text-nowrap">{{ recording.recorded_at|localtime }}</td>
-                <td>
-                    <div>{{ recording.last_error or "Manual action required" }}</div>
-                    <div class="small text-body-secondary">Since {{ recording.first_seen_at|localtime }}</div>
-                </td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <div class="alert alert-success mb-0" role="status">
-        No attention items match the current filters.
-        {% if total_attention > 0 %}There are {{ total_attention }} unresolved items outside this view.{% endif %}
-    </div>
-    {% endif %}
-</section>
-
-<section aria-labelledby="history-heading">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <h2 id="history-heading" class="h5 mb-0">History</h2>
-        <span class="small text-body-secondary">Latest {{ history_limit }} significant events</span>
-    </div>
 
     {% if history_events %}
     <div class="table-responsive shadow-sm rounded">
         <table class="table table-hover bg-body mb-0">
-            <thead class="table-light">
+            <thead>
             <tr>
                 <th>Time</th>
                 <th>Recording</th>
