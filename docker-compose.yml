@@ -1,0 +1,17 @@
+services:
+  viewer:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_PATH: /state/cm_downloader.db
+    volumes:
+      - ./state:/state:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped

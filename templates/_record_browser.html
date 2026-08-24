@@ -1,0 +1,151 @@
+<section class="mb-4" aria-labelledby="filters-heading">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 id="filters-heading" class="h5 mb-0">Filters</h2>
+        <span id="filter-indicator" class="spinner-border spinner-border-sm htmx-indicator" aria-label="Loading"></span>
+    </div>
+
+    <form id="record-filters" class="row g-3" method="get" action="/">
+        <div class="col-12 col-lg-5">
+            <label for="q" class="form-label">Recording name</label>
+            <input id="q"
+                   class="form-control"
+                   type="search"
+                   name="q"
+                   value="{{ q }}"
+                   placeholder="Search recording name..."
+                   autocomplete="off"
+                   hx-get="/"
+                   hx-trigger="input changed delay:300ms, search"
+                   hx-target="#record-browser"
+                   hx-include="#record-filters"
+                   hx-indicator="#filter-indicator"
+                   hx-push-url="true">
+        </div>
+        <div class="col-12 col-md-6 col-lg-3">
+            <label for="account" class="form-label">Account</label>
+            <select id="account"
+                    class="form-select"
+                    name="account"
+                    hx-get="/"
+                    hx-trigger="change"
+                    hx-target="#record-browser"
+                    hx-include="#record-filters"
+                    hx-indicator="#filter-indicator"
+                    hx-push-url="true">
+                <option value="">All accounts</option>
+                {% for account in accounts %}
+                    <option value="{{ account.id }}" {% if account_id == account.id %}selected{% endif %}>{{ account.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12 col-md-6 col-lg-3">
+            <label for="date" class="form-label">Recording date</label>
+            <input id="date"
+                   class="form-control"
+                   type="date"
+                   name="date"
+                   value="{{ selected_date }}"
+                   hx-get="/"
+                   hx-trigger="change"
+                   hx-target="#record-browser"
+                   hx-include="#record-filters"
+                   hx-indicator="#filter-indicator"
+                   hx-push-url="true">
+        </div>
+        <div class="col-12 col-lg-1 d-flex align-items-end">
+            {% if filters_active %}
+                <a class="btn btn-outline-secondary w-100"
+                   href="/"
+                   hx-get="/"
+                   hx-target="#record-browser"
+                   hx-indicator="#filter-indicator"
+                   hx-push-url="true">Clear</a>
+            {% endif %}
+        </div>
+    </form>
+</section>
+
+<section class="mb-4" aria-labelledby="attention-heading">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h2 id="attention-heading" class="h5 mb-0">Requires attention</h2>
+        {% if filters_active %}
+            <span class="badge text-bg-danger">{{ total_attention }} total / {{ shown_attention }} shown</span>
+        {% else %}
+            <span class="badge text-bg-danger">{{ total_attention }}</span>
+        {% endif %}
+    </div>
+
+    {% if attention_records %}
+    <div class="table-responsive shadow-sm rounded">
+        <table class="table table-hover bg-body mb-0">
+            <thead class="table-light">
+            <tr>
+                <th>Recording</th>
+                <th>Account</th>
+                <th>Status</th>
+                <th>Recorded</th>
+                <th>Problem</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for recording in attention_records %}
+            <tr class="attention-row">
+                <td>
+                    <div class="fw-semibold">{{ recording.recording_name }}</div>
+                    <div class="small text-body-secondary">ID {{ recording.recording_id }}</div>
+                </td>
+                <td>{{ recording.account.name }}</td>
+                <td><span class="badge {{ recording.status|status_class }}">{{ recording.status }}</span></td>
+                <td class="text-nowrap">{{ recording.recorded_at|localtime }}</td>
+                <td>
+                    <div>{{ recording.last_error or "Manual action required" }}</div>
+                    <div class="small text-body-secondary">Since {{ recording.first_seen_at|localtime }}</div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-success mb-0" role="status">
+        No attention items match the current filters.
+        {% if total_attention > 0 %}There are {{ total_attention }} unresolved items outside this view.{% endif %}
+    </div>
+    {% endif %}
+</section>
+
+<section aria-labelledby="history-heading">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h2 id="history-heading" class="h5 mb-0">History</h2>
+        <span class="small text-body-secondary">Latest {{ history_limit }} significant events</span>
+    </div>
+
+    {% if history_events %}
+    <div class="table-responsive shadow-sm rounded">
+        <table class="table table-hover bg-body mb-0">
+            <thead class="table-light">
+            <tr>
+                <th>Time</th>
+                <th>Recording</th>
+                <th>Account</th>
+                <th>Event</th>
+                <th>Details</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for event in history_events %}
+            <tr>
+                <td class="text-nowrap">{{ event.created_at|localtime }}</td>
+                <td>{{ event.recording.recording_name }}</td>
+                <td>{{ event.recording.account.name }}</td>
+                <td><span class="badge {{ event.event_type|status_class }}">{{ event.event_type }}</span></td>
+                <td>{{ event.message }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-secondary mb-0" role="status">No history events match the current filters.</div>
+    {% endif %}
+</section>

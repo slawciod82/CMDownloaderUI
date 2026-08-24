@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="alert alert-danger" role="alert">
+    <h1 class="h4 alert-heading">Database unavailable</h1>
+    <p>{{ message }}</p>
+    <hr>
+    <div class="small font-monospace text-break">{{ detail }}</div>
+</div>
+{% endblock %}

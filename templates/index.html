@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h1 class="h3 mb-1">Operator dashboard</h1>
+        <p class="text-body-secondary mb-0">ClickMeeting downloader status, attention queue and history.</p>
+    </div>
+</div>
+
+<section class="mb-4" aria-labelledby="current-heading">
+    <h2 id="current-heading" class="h5 mb-3">Current activity</h2>
+    <div id="current-activity"
+         hx-get="/current"
+         hx-trigger="every 2s"
+         hx-swap="innerHTML">
+        {% include "_current_activity.html" %}
+    </div>
+</section>
+
+<div id="record-browser">
+    {% include "_record_browser.html" %}
+</div>
+{% endblock %}
