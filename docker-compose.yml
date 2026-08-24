@@ -6,7 +6,7 @@ services:
     environment:
       DATABASE_PATH: /state/cm_downloader.db
     volumes:
-      - ./state:/state:ro
+      - ${CM_STATE_DIR:-./state}:/state:ro
     read_only: true
     tmpfs:
       - /tmp
