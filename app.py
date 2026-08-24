@@ -7,15 +7,16 @@ from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 from flask import Flask, Response, render_template, request
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import create_engine, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, joinedload
 
-from models import Account, Event, Recording, RuntimeState
+from models import Account, Event, Recording, Run, RuntimeWorker, SchedulerState
 
 
 WARSAW = ZoneInfo("Europe/Warsaw")
 HISTORY_LIMIT = 100
+HEARTBEAT_STALE_SECONDS = int(os.getenv("HEARTBEAT_STALE_SECONDS", "120"))
 
 app = Flask(__name__)
 
@@ -27,6 +28,10 @@ def build_database_url() -> str:
 
 
 engine = create_engine(build_database_url(), future=True)
+
+
+def utc_now_naive() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def escape_like(value: str) -> str:
@@ -77,40 +82,96 @@ def recording_filter_conditions(q: str, account_id: int | None, selected_date: d
     return conditions
 
 
-def get_runtime_state(session: Session) -> dict | None:
-    runtime = session.execute(
-        select(RuntimeState)
-        .options(joinedload(RuntimeState.recording).joinedload(Recording.account))
-        .where(RuntimeState.id == 1)
+def get_runtime_context(session: Session) -> dict:
+    now = utc_now_naive()
+
+    scheduler = session.execute(
+        select(SchedulerState)
+        .options(joinedload(SchedulerState.current_run))
+        .where(SchedulerState.id == 1)
     ).scalar_one_or_none()
 
-    if runtime is None:
-        return None
+    last_finished_run = session.execute(
+        select(Run)
+        .where(Run.finished_at.is_not(None))
+        .order_by(Run.finished_at.desc())
+        .limit(1)
+    ).scalar_one_or_none()
 
-    percent = 0.0
-    if runtime.total_bytes > 0:
-        percent = min(100.0, runtime.downloaded_bytes * 100 / runtime.total_bytes)
+    workers = session.execute(
+        select(RuntimeWorker)
+        .options(joinedload(RuntimeWorker.recording).joinedload(Recording.account))
+        .order_by(RuntimeWorker.worker_name)
+    ).scalars().all()
 
-    return {"runtime": runtime, "percent": percent}
+    effective_state = "UNKNOWN"
+    heartbeat_age_seconds = None
+    next_run_in_seconds = None
+
+    if scheduler is not None:
+        heartbeat_age_seconds = max(0, int((now - scheduler.heartbeat_at).total_seconds()))
+        if heartbeat_age_seconds > HEARTBEAT_STALE_SECONDS:
+            effective_state = "OFFLINE"
+        else:
+            effective_state = scheduler.state
+
+        if scheduler.next_run_at is not None:
+            next_run_in_seconds = max(0, int((scheduler.next_run_at - now).total_seconds()))
+
+    worker_views = []
+    for worker in workers:
+        percent = 0.0
+        if worker.total_bytes > 0:
+            percent = min(100.0, worker.downloaded_bytes * 100 / worker.total_bytes)
+        worker_views.append({"worker": worker, "percent": percent})
+
+    current_run = scheduler.current_run if scheduler is not None else None
+    current_run_seconds = None
+    if current_run is not None:
+        current_run_seconds = max(0, int((now - current_run.started_at).total_seconds()))
+
+    last_run_seconds = None
+    if last_finished_run is not None and last_finished_run.finished_at is not None:
+        last_run_seconds = max(
+            0,
+            int((last_finished_run.finished_at - last_finished_run.started_at).total_seconds()),
+        )
+
+    return {
+        "scheduler": scheduler,
+        "effective_state": effective_state,
+        "heartbeat_age_seconds": heartbeat_age_seconds,
+        "next_run_in_seconds": next_run_in_seconds,
+        "current_run": current_run,
+        "current_run_seconds": current_run_seconds,
+        "last_finished_run": last_finished_run,
+        "last_run_seconds": last_run_seconds,
+        "worker_views": worker_views,
+        "active_worker_count": len(worker_views),
+        "total_speed_bps": sum(worker.speed_bps for worker in workers),
+        "heartbeat_stale_seconds": HEARTBEAT_STALE_SECONDS,
+    }
 
 
-def get_record_browser_context(session: Session) -> dict:
+def get_attention_context(session: Session) -> dict:
+    attention_records = session.execute(
+        select(Recording)
+        .options(joinedload(Recording.account))
+        .where(Recording.attention_required.is_(True))
+        .order_by(Recording.first_seen_at.asc())
+    ).scalars().all()
+
+    return {
+        "attention_records": attention_records,
+        "total_attention": len(attention_records),
+    }
+
+
+def get_history_context(session: Session) -> dict:
     q, account_id, selected_date = parse_filters()
     conditions = recording_filter_conditions(q, account_id, selected_date)
 
     accounts = session.execute(select(Account).order_by(Account.name)).scalars().all()
-
-    total_attention = session.scalar(
-        select(func.count()).select_from(Recording).where(Recording.attention_required.is_(True))
-    ) or 0
-
-    attention_stmt = (
-        select(Recording)
-        .options(joinedload(Recording.account))
-        .where(Recording.attention_required.is_(True), *conditions)
-        .order_by(Recording.first_seen_at.asc())
-    )
-    attention_records = session.execute(attention_stmt).scalars().all()
 
     history_stmt = (
         select(Event)
@@ -128,9 +189,6 @@ def get_record_browser_context(session: Session) -> dict:
         "account_id": account_id,
         "selected_date": selected_date.isoformat() if selected_date else "",
         "filters_active": bool(q or account_id or selected_date),
-        "total_attention": total_attention,
-        "shown_attention": len(attention_records),
-        "attention_records": attention_records,
         "history_events": history_events,
         "history_limit": HISTORY_LIMIT,
     }
@@ -157,11 +215,16 @@ def index():
     is_htmx = request.headers.get("HX-Request") == "true"
     try:
         with Session(engine) as session:
-            browser_context = get_record_browser_context(session)
+            history_context = get_history_context(session)
             if is_htmx:
-                return render_template("_record_browser.html", **browser_context)
-            current = get_runtime_state(session)
-            return render_template("index.html", current=current, **browser_context)
+                return render_template("_record_browser.html", **history_context)
+
+            return render_template(
+                "index.html",
+                **get_runtime_context(session),
+                **get_attention_context(session),
+                **history_context,
+            )
     except OperationalError as exc:
         return database_error_response(exc, fragment=is_htmx)
 
@@ -170,8 +233,16 @@ def index():
 def current_activity():
     try:
         with Session(engine) as session:
-            current = get_runtime_state(session)
-            return render_template("_current_activity.html", current=current)
+            return render_template("_current_activity.html", **get_runtime_context(session))
+    except OperationalError as exc:
+        return database_error_response(exc, fragment=True)
+
+
+@app.get("/attention")
+def attention_queue():
+    try:
+        with Session(engine) as session:
+            return render_template("_attention.html", **get_attention_context(session))
     except OperationalError as exc:
         return database_error_response(exc, fragment=True)
 
@@ -195,6 +266,22 @@ def format_speed(value: int | float | None) -> str:
     return f"{format_size(value)}/s"
 
 
+@app.template_filter("duration")
+def format_duration(value: int | float | None) -> str:
+    if value is None:
+        return "—"
+
+    total_seconds = max(0, int(value))
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    if hours:
+        return f"{hours}h {minutes:02d}m {seconds:02d}s"
+    if minutes:
+        return f"{minutes}m {seconds:02d}s"
+    return f"{seconds}s"
+
+
 @app.template_filter("localtime")
 def format_local_time(value: datetime | None) -> str:
     if value is None:
@@ -209,8 +296,14 @@ def status_class(value: str | None) -> str:
     return {
         "COMPLETED": "text-bg-success",
         "COMPLETED_MANUAL_DELETE": "text-bg-success",
+        "COMPLETED_WITH_ERRORS": "text-bg-warning",
         "RESOLVED_EXTERNALLY": "text-bg-secondary",
+        "RUNNING": "text-bg-primary",
+        "WAITING": "text-bg-secondary",
+        "CHECKING": "text-bg-info",
         "DOWNLOADING": "text-bg-primary",
+        "OFFLINE": "text-bg-danger",
+        "FAILED": "text-bg-danger",
         "DELETE_FAILED": "text-bg-warning",
         "RETRYABLE_ERROR": "text-bg-info",
         "QUARANTINED": "text-bg-danger",
