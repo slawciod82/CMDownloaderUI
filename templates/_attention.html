@@ -1,0 +1,44 @@
+<section class="mb-4" aria-labelledby="attention-heading">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h2 id="attention-heading" class="h5 mb-1">Requires attention</h2>
+            <div class="small text-body-secondary">Operator work queue. History filters do not affect this list.</div>
+        </div>
+        <span class="badge text-bg-danger">{{ total_attention }}</span>
+    </div>
+
+    {% if attention_records %}
+    <div class="table-responsive shadow-sm rounded">
+        <table class="table table-hover bg-body mb-0">
+            <thead>
+            <tr>
+                <th>Recording</th>
+                <th>Account</th>
+                <th>Status</th>
+                <th>Recorded</th>
+                <th>Problem</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for recording in attention_records %}
+            <tr class="attention-row">
+                <td>
+                    <div class="fw-semibold">{{ recording.recording_name }}</div>
+                    <div class="small text-body-secondary">ID {{ recording.recording_id }}</div>
+                </td>
+                <td>{{ recording.account.name }}</td>
+                <td><span class="badge {{ recording.status|status_class }}">{{ recording.status }}</span></td>
+                <td class="text-nowrap">{{ recording.recorded_at|localtime }}</td>
+                <td>
+                    <div>{{ recording.last_error or "Manual action required" }}</div>
+                    <div class="small text-body-secondary">Since {{ recording.first_seen_at|localtime }}</div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-success mb-0" role="status">No unresolved items require operator action.</div>
+    {% endif %}
+</section>
