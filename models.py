@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -21,9 +21,12 @@ class Account(Base):
 
 class Recording(Base):
     __tablename__ = "recordings"
+    __table_args__ = (
+        UniqueConstraint("account_id", "recording_id", name="uq_recordings_account_recording"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    recording_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    recording_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     conference_id: Mapped[str] = mapped_column(String(64), nullable=False)
     account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id"), nullable=False, index=True)
     recording_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
