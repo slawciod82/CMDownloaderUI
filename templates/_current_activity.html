@@ -1,40 +1,155 @@
-{% if current and current.runtime.state == "DOWNLOADING" and current.runtime.recording %}
-<div class="card shadow-sm">
-    <div class="card-body">
-        <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
-            <div>
-                <div class="small text-body-secondary">Downloading</div>
-                <div class="fw-semibold">{{ current.runtime.recording.recording_name }}</div>
-                <div class="small text-body-secondary">{{ current.runtime.recording.account.name }}</div>
-            </div>
-            <div class="text-end">
-                <span class="badge text-bg-primary">{{ "%.1f"|format(current.percent) }}%</span>
-                <div class="small text-body-secondary mt-1">Updated {{ current.runtime.updated_at|localtime }}</div>
-            </div>
-        </div>
-        <div class="progress mb-2" role="progressbar" aria-label="Download progress"
-             aria-valuenow="{{ current.percent }}" aria-valuemin="0" aria-valuemax="100">
-            <div class="progress-bar progress-bar-striped progress-bar-animated"
-                 style="width: {{ current.percent }}%"></div>
-        </div>
-        <div class="d-flex flex-wrap justify-content-between gap-2 small">
-            <span>{{ current.runtime.downloaded_bytes|filesize }} / {{ current.runtime.total_bytes|filesize }}</span>
-            <span>{{ current.runtime.speed_bps|speed }}</span>
-        </div>
-    </div>
-</div>
-{% elif current %}
-<div class="card shadow-sm">
-    <div class="card-body d-flex flex-wrap justify-content-between gap-2">
+<section class="mb-4" aria-labelledby="downloader-status-heading">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <div>
-            <span class="badge text-bg-success me-2">{{ current.runtime.state }}</span>
-            <span>No active download.</span>
+            <h2 id="downloader-status-heading" class="h5 mb-1">Downloader status</h2>
+            <div class="small text-body-secondary">Scheduler health, run timing and next cycle.</div>
         </div>
-        <div class="small text-body-secondary">Updated {{ current.runtime.updated_at|localtime }}</div>
+        <span class="badge {{ effective_state|status_class }}">{{ effective_state }}</span>
     </div>
-</div>
-{% else %}
-<div class="alert alert-secondary mb-0" role="status">
-    No runtime state has been written by CMDownloader yet.
-</div>
-{% endif %}
+
+    {% if scheduler %}
+    <div class="card shadow-sm">
+        <div class="card-body">
+            {% if effective_state == "RUNNING" and current_run %}
+            <div class="row g-3">
+                <div class="col-6 col-lg-3">
+                    <div class="small text-body-secondary">Started</div>
+                    <div class="fw-semibold">{{ current_run.started_at|localtime }}</div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="small text-body-secondary">Running for</div>
+                    <div class="fw-semibold">{{ current_run_seconds|duration }}</div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="small text-body-secondary">Active workers</div>
+                    <div class="fw-semibold">{{ active_worker_count }}</div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="small text-body-secondary">Total speed</div>
+                    <div class="fw-semibold">{{ total_speed_bps|speed }}</div>
+                </div>
+            </div>
+            <hr>
+            <div class="d-flex flex-wrap justify-content-between gap-2 small text-body-secondary">
+                <span>Next cycle: {{ scheduler.interval_seconds|duration }} after this run finishes.</span>
+                <span>Heartbeat {{ scheduler.heartbeat_at|localtime }}</span>
+            </div>
+
+            {% elif effective_state == "WAITING" %}
+            <div class="row g-3">
+                <div class="col-6 col-lg-3">
+                    <div class="small text-body-secondary">Last run</div>
+                    <div class="fw-semibold">{{ last_finished_run.started_at|localtime if last_finished_run else "—" }}</div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="small text-body-secondary">Duration</div>
+                    <div class="fw-semibold">{{ last_run_seconds|duration }}</div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="small text-body-secondary">Next run</div>
+                    <div class="fw-semibold">{{ scheduler.next_run_at|localtime }}</div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="small text-body-secondary">Starts in</div>
+                    <div class="fw-semibold">{{ next_run_in_seconds|duration }}</div>
+                </div>
+            </div>
+            {% if last_finished_run %}
+            <hr>
+            <div class="d-flex flex-wrap justify-content-between gap-2 small">
+                <span>Last result <span class="badge {{ last_finished_run.status|status_class }}">{{ last_finished_run.status }}</span></span>
+                <span>{{ last_finished_run.downloaded_count }} downloaded · {{ last_finished_run.failed_count }} problems</span>
+                <span class="text-body-secondary">Heartbeat {{ scheduler.heartbeat_at|localtime }}</span>
+            </div>
+            {% endif %}
+
+            {% elif effective_state == "OFFLINE" %}
+            <div class="alert alert-danger mb-3" role="alert">
+                Downloader heartbeat is stale. Last known scheduler state: <strong>{{ scheduler.state }}</strong>.
+            </div>
+            <div class="row g-3">
+                <div class="col-6 col-lg-3">
+                    <div class="small text-body-secondary">Last heartbeat</div>
+                    <div class="fw-semibold">{{ scheduler.heartbeat_at|localtime }}</div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="small text-body-secondary">Heartbeat age</div>
+                    <div class="fw-semibold">{{ heartbeat_age_seconds|duration }}</div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="small text-body-secondary">Last run</div>
+                    <div class="fw-semibold">{{ last_finished_run.finished_at|localtime if last_finished_run else "—" }}</div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="small text-body-secondary">Next scheduled</div>
+                    <div class="fw-semibold">{{ scheduler.next_run_at|localtime }}</div>
+                </div>
+            </div>
+
+            {% else %}
+            <div class="d-flex flex-wrap justify-content-between gap-2">
+                <span>Scheduler state: <strong>{{ scheduler.state }}</strong></span>
+                <span class="small text-body-secondary">Heartbeat {{ scheduler.heartbeat_at|localtime }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-secondary mb-0" role="status">
+        No scheduler state has been written by CMDownloader yet.
+    </div>
+    {% endif %}
+</section>
+
+<section class="mb-4" aria-labelledby="current-heading">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h2 id="current-heading" class="h5 mb-0">Current activity</h2>
+        <span class="badge text-bg-secondary">{{ active_worker_count }} active</span>
+    </div>
+
+    {% if effective_state == "OFFLINE" and worker_views %}
+    <div class="alert alert-warning py-2" role="status">
+        Worker rows below are the last known state before the downloader heartbeat became stale.
+    </div>
+    {% endif %}
+
+    {% if worker_views %}
+        <div class="vstack gap-3">
+        {% for item in worker_views %}
+            {% set worker = item.worker %}
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
+                        <div>
+                            <div class="fw-semibold">{{ worker.recording.recording_name }}</div>
+                            <div class="small text-body-secondary">{{ worker.recording.account.name }} · {{ worker.worker_name }}</div>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge {{ worker.state|status_class }}">{{ "%.1f"|format(item.percent) }}%</span>
+                            <div class="small text-body-secondary mt-1">Updated {{ worker.updated_at|localtime }}</div>
+                        </div>
+                    </div>
+                    <div class="progress mb-2" role="progressbar" aria-label="Download progress"
+                         aria-valuenow="{{ item.percent }}" aria-valuemin="0" aria-valuemax="100">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated"
+                             style="width: {{ item.percent }}%"></div>
+                    </div>
+                    <div class="d-flex flex-wrap justify-content-between gap-2 small">
+                        <span>{{ worker.downloaded_bytes|filesize }} / {{ worker.total_bytes|filesize }}</span>
+                        <span>{{ worker.speed_bps|speed }}</span>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+    {% else %}
+    <div class="card shadow-sm">
+        <div class="card-body d-flex flex-wrap justify-content-between gap-2">
+            <span>No active downloads.</span>
+            {% if scheduler and scheduler.next_run_at %}
+            <span class="small text-body-secondary">Next check {{ scheduler.next_run_at|localtime }}</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</section>
