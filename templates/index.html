@@ -8,15 +8,19 @@
     </div>
 </div>
 
-<section class="mb-4" aria-labelledby="current-heading">
-    <h2 id="current-heading" class="h5 mb-3">Current activity</h2>
-    <div id="current-activity"
-         hx-get="/current"
-         hx-trigger="every 2s"
-         hx-swap="innerHTML">
-        {% include "_current_activity.html" %}
-    </div>
-</section>
+<div id="current-activity"
+     hx-get="/current"
+     hx-trigger="every 2s"
+     hx-swap="innerHTML">
+    {% include "_current_activity.html" %}
+</div>
+
+<div id="attention-queue"
+     hx-get="/attention"
+     hx-trigger="every 5s"
+     hx-swap="innerHTML">
+    {% include "_attention.html" %}
+</div>
 
 <div id="record-browser">
     {% include "_record_browser.html" %}
