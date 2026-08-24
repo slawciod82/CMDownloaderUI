@@ -58,16 +58,44 @@ class Event(Base):
     recording: Mapped[Recording] = relationship(back_populates="events")
 
 
-class RuntimeState(Base):
-    __tablename__ = "runtime_state"
+class Run(Base):
+    __tablename__ = "runs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    state: Mapped[str] = mapped_column(String(40), nullable=False, default="IDLE")
-    recording_id: Mapped[int | None] = mapped_column(ForeignKey("recordings.id"), nullable=True)
+    status: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False, index=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True, index=True)
+    recordings_found: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    downloaded_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    failed_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class SchedulerState(Base):
+    __tablename__ = "scheduler_state"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    state: Mapped[str] = mapped_column(String(40), nullable=False, default="WAITING")
+    heartbeat_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+    next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    interval_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=300)
+    current_run_id: Mapped[int | None] = mapped_column(ForeignKey("runs.id"), nullable=True)
+
+    current_run: Mapped[Run | None] = relationship()
+
+
+class RuntimeWorker(Base):
+    __tablename__ = "runtime_workers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    worker_name: Mapped[str] = mapped_column(String(40), unique=True, nullable=False)
+    run_id: Mapped[int] = mapped_column(ForeignKey("runs.id"), nullable=False, index=True)
+    recording_id: Mapped[int] = mapped_column(ForeignKey("recordings.id"), nullable=False, index=True)
+    state: Mapped[str] = mapped_column(String(40), nullable=False, default="DOWNLOADING")
     downloaded_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     total_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     speed_bps: Mapped[float] = mapped_column(Float, nullable=False, default=0)
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
 
-    recording: Mapped[Recording | None] = relationship()
+    run: Mapped[Run] = relationship()
+    recording: Mapped[Recording] = relationship()
