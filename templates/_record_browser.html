@@ -61,12 +61,7 @@
         </div>
         <div class="col-12 col-lg-1 d-flex align-items-end">
             {% if filters_active %}
-                <a class="btn btn-outline-secondary w-100"
-                   href="/"
-                   hx-get="/"
-                   hx-target="#record-browser"
-                   hx-indicator="#filter-indicator"
-                   hx-push-url="true">Clear</a>
+                <a class="btn btn-outline-secondary w-100" href="/">Clear</a>
             {% endif %}
         </div>
     </form>
@@ -103,10 +98,10 @@
       <span class="small text-body-secondary">Showing {{ history_start }}–{{ history_end }} of {{ history_total }} · Page {{ history_page }} / {{ history_pages }}</span>
       <div class="btn-group" role="group" aria-label="History pages">
         {% if history_prev_url %}
-        <a class="btn btn-outline-primary" href="{{ history_prev_url }}" hx-get="{{ history_prev_url }}" hx-target="#record-browser" hx-push-url="true">Previous</a>
+        <a class="btn btn-outline-primary" href="{{ history_prev_url }}">Previous</a>
         {% endif %}
         {% if history_next_url %}
-        <a class="btn btn-outline-primary" href="{{ history_next_url }}" hx-get="{{ history_next_url }}" hx-target="#record-browser" hx-push-url="true">Next</a>
+        <a class="btn btn-outline-primary" href="{{ history_next_url }}">Next</a>
         {% endif %}
       </div>
     </nav>
