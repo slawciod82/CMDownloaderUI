@@ -339,6 +339,8 @@ def status_class(value: str | None) -> str:
         "COMPLETED_WITH_ERRORS": "text-bg-warning",
         "RESOLVED_EXTERNALLY": "text-bg-secondary",
         "RUNNING": "text-bg-primary",
+        "QUEUED": "text-bg-secondary",
+        "RETRY_WAIT": "text-bg-warning",
         "WAITING": "text-bg-secondary",
         "CHECKING": "text-bg-info",
         "DOWNLOADING": "text-bg-primary",
