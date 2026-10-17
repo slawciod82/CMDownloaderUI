@@ -107,3 +107,15 @@ It should:
 11. append significant events to `events` rather than writing progress events there.
 
 The UI never starts, resolves, retries, deletes or changes an operational record.
+
+## Gate B — independent discovery and download queue
+
+The dashboard reads the seventh Gate A table `download_jobs` (no schema mutations).
+Discovery status and the 300-second start-to-start cadence are separate from transfer activity.
+`/queue` is an HTMX read-only fragment (5-second polling) displaying open tasks, retries,
+recently finished tasks, attempts, and errors. `/current` continues to report live
+transfer progress via `runtime_workers`, including when discovery is WAITING.
+
+For production deploy mount `/var/lib/cmdownloader:/state:ro` in the viewer container.
+Do not grant the UI ClickMeeting credentials or mount `/UPLOAD`.
+The historical 6-table demo database does not support Gate B until migrated by Gate A.
