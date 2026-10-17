@@ -162,20 +162,20 @@ def get_download_queue_context(session: Session) -> dict:
     active_jobs = session.execute(
         select(DownloadJob)
         .options(joinedload(DownloadJob.recording).joinedload(Recording.account))
-        .where(DownloadJob.status.in_(("PENDING", "RUNNING", "RETRY_WAIT")))
+        .where(DownloadJob.status.in_(("QUEUED", "RUNNING", "RETRY_WAIT")))
         .order_by(DownloadJob.created_at.asc(), DownloadJob.id.asc())
         .limit(50)
     ).scalars().all()
     recent_jobs = session.execute(
         select(DownloadJob)
         .options(joinedload(DownloadJob.recording).joinedload(Recording.account))
-        .where(DownloadJob.status.not_in(("PENDING", "RUNNING", "RETRY_WAIT")))
+        .where(DownloadJob.status.not_in(("QUEUED", "RUNNING", "RETRY_WAIT")))
         .order_by(DownloadJob.finished_at.desc(), DownloadJob.id.desc())
         .limit(20)
     ).scalars().all()
     return {
         "job_counts": counts,
-        "queued_count": counts.get("PENDING", 0) + counts.get("RETRY_WAIT", 0),
+        "queued_count": counts.get("QUEUED", 0) + counts.get("RETRY_WAIT", 0),
         "running_job_count": counts.get("RUNNING", 0),
         "active_jobs": active_jobs,
         "recent_jobs": recent_jobs,
