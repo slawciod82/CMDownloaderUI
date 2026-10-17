@@ -107,3 +107,28 @@ It should:
 11. append significant events to `events` rather than writing progress events there.
 
 The UI never starts, resolves, retries, deletes or changes an operational record.
+
+## Gate B — independent discovery and download queue
+
+The dashboard reads the seventh Gate A table `download_jobs` (no schema mutations).
+Discovery status and the 300-second start-to-start cadence are separate from transfer activity.
+`/queue` is an HTMX read-only fragment (5-second polling) displaying open tasks, retries,
+recently finished tasks, attempts, and errors. `/current` continues to report live
+transfer progress via `runtime_workers`, including when discovery is WAITING.
+
+For production deploy mount `/var/lib/cmdownloader:/state:ro` in the viewer container.
+Do not grant the UI ClickMeeting credentials or mount `/UPLOAD`.
+The historical 6-table demo database does not support Gate B until migrated by Gate A.
+
+## Gate B history pagination and refresh
+
+History displays 25 events per page (newest first, stable by event ID), with Previous/Next
+links preserving search, account, and recording-date filters. The URL includes the
+page number for bookmarking. Changing filters resets the page to 1.
+
+The history section polls the read-only database every 30 seconds with HTMX, preserving
+current filters and page. Polling pauses while a history filter has focus to avoid
+interrupting typing. New completed downloads appear in the newest history page when
+CMDownloader records their events. Older pages are not automatically redirected to page 1.
+
+These features do not change downloader scheduling, downloading, SQLite schema or API access.

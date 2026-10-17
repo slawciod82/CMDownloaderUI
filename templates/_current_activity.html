@@ -1,8 +1,8 @@
 <section class="mb-4" aria-labelledby="downloader-status-heading">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <div>
-            <h2 id="downloader-status-heading" class="h5 mb-1">Downloader status</h2>
-            <div class="small text-body-secondary">Scheduler health, run timing and next cycle.</div>
+            <h2 id="downloader-status-heading" class="h5 mb-1">Discovery scheduler</h2>
+            <div class="small text-body-secondary">Independent account discovery every {{ scheduler.interval_seconds|duration if scheduler else '5m' }}. Downloads continue separately.</div>
         </div>
         <span class="badge {{ effective_state|status_class }}">{{ effective_state }}</span>
     </div>
@@ -21,7 +21,7 @@
                     <div class="fw-semibold">{{ current_run_seconds|duration }}</div>
                 </div>
                 <div class="col-6 col-lg-3">
-                    <div class="small text-body-secondary">Active workers</div>
+                    <div class="small text-body-secondary">Active transfers</div>
                     <div class="fw-semibold">{{ active_worker_count }}</div>
                 </div>
                 <div class="col-6 col-lg-3">
@@ -31,7 +31,7 @@
             </div>
             <hr>
             <div class="d-flex flex-wrap justify-content-between gap-2 small text-body-secondary">
-                <span>Next cycle: {{ scheduler.interval_seconds|duration }} after this run finishes.</span>
+                <span>Next scheduled discovery: {{ scheduler.next_run_at|localtime }} (interval measured from start).</span>
                 <span>Heartbeat {{ scheduler.heartbeat_at|localtime }}</span>
             </div>
 
@@ -57,8 +57,8 @@
             {% if last_finished_run %}
             <hr>
             <div class="d-flex flex-wrap justify-content-between gap-2 small">
-                <span>Last result <span class="badge {{ last_finished_run.status|status_class }}">{{ last_finished_run.status }}</span></span>
-                <span>{{ last_finished_run.downloaded_count }} downloaded · {{ last_finished_run.failed_count }} problems</span>
+                <span>Last discovery result <span class="badge {{ last_finished_run.status|status_class }}">{{ last_finished_run.status }}</span></span>
+                <span>{{ last_finished_run.recordings_found }} discovered · {{ last_finished_run.failed_count }} discovery problems</span>
                 <span class="text-body-secondary">Heartbeat {{ scheduler.heartbeat_at|localtime }}</span>
             </div>
             {% endif %}
@@ -103,7 +103,7 @@
 
 <section class="mb-4" aria-labelledby="current-heading">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <h2 id="current-heading" class="h5 mb-0">Current activity</h2>
+        <h2 id="current-heading" class="h5 mb-0">Active transfers</h2>
         <span class="badge text-bg-secondary">{{ active_worker_count }} active</span>
     </div>
 
