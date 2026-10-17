@@ -7,11 +7,11 @@ from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 from flask import Flask, Response, render_template, request
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, select, func
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, joinedload
 
-from models import Account, Event, Recording, Run, RuntimeWorker, SchedulerState
+from models import Account, DownloadJob, Event, Recording, Run, RuntimeWorker, SchedulerState
 
 
 WARSAW = ZoneInfo("Europe/Warsaw")
@@ -153,6 +153,36 @@ def get_runtime_context(session: Session) -> dict:
     }
 
 
+
+def get_download_queue_context(session: Session) -> dict:
+    """Read the Gate A durable queue; historical rows never become work."""
+    counts = dict(session.execute(
+        select(DownloadJob.status, func.count(DownloadJob.id)).group_by(DownloadJob.status)
+    ).all())
+    active_jobs = session.execute(
+        select(DownloadJob)
+        .options(joinedload(DownloadJob.recording).joinedload(Recording.account))
+        .where(DownloadJob.status.in_(("PENDING", "RUNNING", "RETRY_WAIT")))
+        .order_by(DownloadJob.created_at.asc(), DownloadJob.id.asc())
+        .limit(50)
+    ).scalars().all()
+    recent_jobs = session.execute(
+        select(DownloadJob)
+        .options(joinedload(DownloadJob.recording).joinedload(Recording.account))
+        .where(DownloadJob.status.not_in(("PENDING", "RUNNING", "RETRY_WAIT")))
+        .order_by(DownloadJob.finished_at.desc(), DownloadJob.id.desc())
+        .limit(20)
+    ).scalars().all()
+    return {
+        "job_counts": counts,
+        "queued_count": counts.get("PENDING", 0) + counts.get("RETRY_WAIT", 0),
+        "running_job_count": counts.get("RUNNING", 0),
+        "active_jobs": active_jobs,
+        "recent_jobs": recent_jobs,
+        "queue_limit": 50,
+    }
+
+
 def get_attention_context(session: Session) -> dict:
     attention_records = session.execute(
         select(Recording)
@@ -222,6 +252,7 @@ def index():
             return render_template(
                 "index.html",
                 **get_runtime_context(session),
+                **get_download_queue_context(session),
                 **get_attention_context(session),
                 **history_context,
             )
@@ -234,6 +265,15 @@ def current_activity():
     try:
         with Session(engine) as session:
             return render_template("_current_activity.html", **get_runtime_context(session))
+    except OperationalError as exc:
+        return database_error_response(exc, fragment=True)
+
+
+@app.get("/queue")
+def download_queue():
+    try:
+        with Session(engine) as session:
+            return render_template("_download_queue.html", **get_download_queue_context(session))
     except OperationalError as exc:
         return database_error_response(exc, fragment=True)
 
