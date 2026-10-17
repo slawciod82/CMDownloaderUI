@@ -119,3 +119,16 @@ transfer progress via `runtime_workers`, including when discovery is WAITING.
 For production deploy mount `/var/lib/cmdownloader:/state:ro` in the viewer container.
 Do not grant the UI ClickMeeting credentials or mount `/UPLOAD`.
 The historical 6-table demo database does not support Gate B until migrated by Gate A.
+
+## Gate B history pagination and refresh
+
+History displays 25 events per page (newest first, stable by event ID), with Previous/Next
+links preserving search, account, and recording-date filters. The URL includes the
+page number for bookmarking. Changing filters resets the page to 1.
+
+The history section polls the read-only database every 30 seconds with HTMX, preserving
+current filters and page. Polling pauses while a history filter has focus to avoid
+interrupting typing. New completed downloads appear in the newest history page when
+CMDownloader records their events. Older pages are not automatically redirected to page 1.
+
+These features do not change downloader scheduling, downloading, SQLite schema or API access.
