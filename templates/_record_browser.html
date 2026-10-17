@@ -2,12 +2,13 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <div>
             <h2 id="history-heading" class="h5 mb-1">History</h2>
-            <div class="small text-body-secondary">Latest {{ history_limit }} significant events. Filters apply only to history.</div>
+            <div class="small text-body-secondary">{{ history_total }} events · {{ history_limit }} per page. Filters apply only to history.</div>
         </div>
         <span id="filter-indicator" class="spinner-border spinner-border-sm htmx-indicator" aria-label="Loading"></span>
     </div>
 
     <form id="record-filters" class="row g-3 mb-3" method="get" action="/">
+        <input type="hidden" name="page" id="history-page" value="{{ history_page }}">
         <div class="col-12 col-lg-5">
             <label for="q" class="form-label">Recording name</label>
             <input id="q"
@@ -22,7 +23,8 @@
                    hx-target="#record-browser"
                    hx-include="#record-filters"
                    hx-indicator="#filter-indicator"
-                   hx-push-url="true">
+                   hx-push-url="true"
+                   hx-on:input="document.getElementById('history-page').value = 1">
         </div>
         <div class="col-12 col-md-6 col-lg-3">
             <label for="account" class="form-label">Account</label>
@@ -34,7 +36,8 @@
                     hx-target="#record-browser"
                     hx-include="#record-filters"
                     hx-indicator="#filter-indicator"
-                    hx-push-url="true">
+                    hx-push-url="true"
+                    hx-on:change="document.getElementById('history-page').value = 1">
                 <option value="">All accounts</option>
                 {% for account in accounts %}
                     <option value="{{ account.id }}" {% if account_id == account.id %}selected{% endif %}>{{ account.name }}</option>
@@ -53,7 +56,8 @@
                    hx-target="#record-browser"
                    hx-include="#record-filters"
                    hx-indicator="#filter-indicator"
-                   hx-push-url="true">
+                   hx-push-url="true"
+                   hx-on:change="document.getElementById('history-page').value = 1">
         </div>
         <div class="col-12 col-lg-1 d-flex align-items-end">
             {% if filters_active %}
@@ -95,4 +99,15 @@
     {% else %}
     <div class="alert alert-secondary mb-0" role="status">No history events match the current filters.</div>
     {% endif %}
+    <nav class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3" aria-label="History pagination">
+      <span class="small text-body-secondary">Showing {{ history_start }}–{{ history_end }} of {{ history_total }} · Page {{ history_page }} / {{ history_pages }}</span>
+      <div class="btn-group" role="group" aria-label="History pages">
+        {% if history_prev_url %}
+        <a class="btn btn-outline-primary" href="{{ history_prev_url }}" hx-get="{{ history_prev_url }}" hx-target="#record-browser" hx-push-url="true">Previous</a>
+        {% endif %}
+        {% if history_next_url %}
+        <a class="btn btn-outline-primary" href="{{ history_next_url }}" hx-get="{{ history_next_url }}" hx-target="#record-browser" hx-push-url="true">Next</a>
+        {% endif %}
+      </div>
+    </nav>
 </section>
