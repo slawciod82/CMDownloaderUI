@@ -15,6 +15,13 @@
     {% include "_current_activity.html" %}
 </div>
 
+<div id="download-queue"
+     hx-get="/queue"
+     hx-trigger="every 5s"
+     hx-swap="innerHTML">
+    {% include "_download_queue.html" %}
+</div>
+
 <div id="attention-queue"
      hx-get="/attention"
      hx-trigger="every 5s"
