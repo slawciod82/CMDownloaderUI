@@ -102,3 +102,22 @@ class RuntimeWorker(Base):
 
     run: Mapped[Run] = relationship()
     recording: Mapped[Recording] = relationship()
+
+
+class DownloadJob(Base):
+    """Persistent downloader queue, read-only in this viewer."""
+    __tablename__ = "download_jobs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    recording_id: Mapped[int] = mapped_column(ForeignKey("recordings.id"), nullable=False, index=True)
+    discovered_run_id: Mapped[int] = mapped_column(ForeignKey("runs.id"), nullable=False)
+    operation: Mapped[str] = mapped_column(String(16), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), index=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_error: Mapped[str | None] = mapped_column(Text)
+
+    recording: Mapped[Recording] = relationship()
