@@ -6,7 +6,7 @@ from pathlib import Path
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
-from flask import Flask, Response, render_template, request
+from flask import Flask, Response, render_template, request, url_for
 from sqlalchemy import create_engine, select, func
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, joinedload
@@ -15,7 +15,7 @@ from models import Account, DownloadJob, Event, Recording, Run, RuntimeWorker, S
 
 
 WARSAW = ZoneInfo("Europe/Warsaw")
-HISTORY_LIMIT = 100
+HISTORY_PAGE_SIZE = 25
 HEARTBEAT_STALE_SECONDS = int(os.getenv("HEARTBEAT_STALE_SECONDS", "120"))
 
 app = Flask(__name__)
@@ -200,19 +200,28 @@ def get_attention_context(session: Session) -> dict:
 def get_history_context(session: Session) -> dict:
     q, account_id, selected_date = parse_filters()
     conditions = recording_filter_conditions(q, account_id, selected_date)
-
     accounts = session.execute(select(Account).order_by(Account.name)).scalars().all()
 
-    history_stmt = (
+    # Count matching events only; filters must never alter the attention queue.
+    total = session.scalar(
+        select(func.count(Event.id)).join(Event.recording).where(*conditions)
+    ) or 0
+    total_pages = max(1, (total + HISTORY_PAGE_SIZE - 1) // HISTORY_PAGE_SIZE)
+    raw_page = request.args.get("page", "1")
+    page = max(1, min(int(raw_page), total_pages)) if raw_page.isdigit() else 1
+
+    history_events = session.execute(
         select(Event)
         .join(Event.recording)
         .options(joinedload(Event.recording).joinedload(Recording.account))
         .where(*conditions)
-        .order_by(Event.created_at.desc())
-        .limit(HISTORY_LIMIT)
-    )
-    history_events = session.execute(history_stmt).scalars().all()
+        .order_by(Event.created_at.desc(), Event.id.desc())
+        .offset((page - 1) * HISTORY_PAGE_SIZE)
+        .limit(HISTORY_PAGE_SIZE)
+    ).scalars().all()
 
+    # Preserve bookmarks, filters and pagination across HTMX navigation.
+    url_filters = {"q": q, "account": account_id or "", "date": selected_date.isoformat() if selected_date else ""}
     return {
         "accounts": accounts,
         "q": q,
@@ -220,7 +229,14 @@ def get_history_context(session: Session) -> dict:
         "selected_date": selected_date.isoformat() if selected_date else "",
         "filters_active": bool(q or account_id or selected_date),
         "history_events": history_events,
-        "history_limit": HISTORY_LIMIT,
+        "history_limit": HISTORY_PAGE_SIZE,
+        "history_page": page,
+        "history_pages": total_pages,
+        "history_total": total,
+        "history_start": (page - 1) * HISTORY_PAGE_SIZE + 1 if total else 0,
+        "history_end": min(page * HISTORY_PAGE_SIZE, total),
+        "history_prev_url": url_for("index", **url_filters, page=page - 1) if page > 1 else None,
+        "history_next_url": url_for("index", **url_filters, page=page + 1) if page < total_pages else None,
     }
 
 
