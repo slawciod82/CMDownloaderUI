@@ -29,7 +29,11 @@
     {% include "_attention.html" %}
 </div>
 
-<div id="record-browser">
+<div id="record-browser"
+     hx-get="/"
+     hx-trigger="every 30s [!document.querySelector('#record-filters:focus-within')]"
+     hx-include="#record-filters"
+     hx-swap="innerHTML">
     {% include "_record_browser.html" %}
 </div>
 {% endblock %}
