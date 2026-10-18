@@ -73,6 +73,7 @@
             <tr>
                 <th>Time</th>
                 <th>Recording</th>
+                <th>Duration</th>
                 <th>Account</th>
                 <th>Event</th>
                 <th>Details</th>
@@ -83,6 +84,7 @@
             <tr>
                 <td class="text-nowrap">{{ event.created_at|localtime }}</td>
                 <td>{{ event.recording.recording_name }}</td>
+                <td class="text-nowrap">{{ event.recording.duration_seconds|recording_duration }}</td>
                 <td>{{ event.recording.account.name }}</td>
                 <td><span class="badge {{ event.event_type|status_class }}">{{ event.event_type }}</span></td>
                 <td>{{ event.message }}</td>

@@ -369,3 +369,12 @@ def status_class(value: str | None) -> str:
         "RETRYABLE_ERROR": "text-bg-info",
         "QUARANTINED": "text-bg-danger",
     }.get(value or "", "text-bg-secondary")
+
+
+@app.template_filter("recording_duration")
+def recording_duration(value: int | None) -> str:
+    if value is None:
+        return "—"
+    hours, remainder = divmod(int(value), 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours}:{minutes:02d}:{seconds:02d}"
