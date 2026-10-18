@@ -181,7 +181,7 @@ def get_download_queue_context(session: Session) -> dict:
         "queued_count": counts.get("QUEUED", 0) + counts.get("RETRY_WAIT", 0),
         "running_job_count": counts.get("RUNNING", 0),
         "job_views": job_views,
-        "total_speed_bps": sum(worker.speed_bps for worker in workers),
+
         "queue_limit": 50,
     }
 
