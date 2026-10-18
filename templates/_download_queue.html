@@ -20,7 +20,7 @@
         <div class="d-flex flex-wrap justify-content-between gap-2 mb-2">
           <div>
             <div class="fw-semibold">{{ job.recording.recording_name }}</div>
-            <div class="small text-body-secondary">{{ job.recording.account.name }} · #{{ job.recording_id }} · {{ job.operation }} · attempt {{ job.attempt_count }}</div>
+            <div class="small text-body-secondary">{{ job.recording.account.name }} · #{{ job.recording_id }} · duration {{ job.recording.duration_seconds|recording_duration }} · {{ job.operation }} · attempt {{ job.attempt_count }}</div>
           </div>
           <span class="badge {{ job.status|status_class }}">{{ job.status }}</span>
         </div>
