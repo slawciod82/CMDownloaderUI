@@ -132,3 +132,10 @@ interrupting typing. New completed downloads appear in the newest history page w
 CMDownloader records their events. Older pages are not automatically redirected to page 1.
 
 These features do not change downloader scheduling, downloading, SQLite schema or API access.
+
+## Unified Download Manager
+
+Active transfers and queued/retry jobs now appear in one Download Manager section.
+Metrics come from `runtime_workers`, queue state from `download_jobs`; updates every 2s.
+Empty state is shown only once. Discovery remains a separate panel, and History
+retains completed-event pagination. Read-only SQLite access and backend unchanged.

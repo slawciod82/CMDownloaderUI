@@ -166,19 +166,22 @@ def get_download_queue_context(session: Session) -> dict:
         .order_by(DownloadJob.created_at.asc(), DownloadJob.id.asc())
         .limit(50)
     ).scalars().all()
-    recent_jobs = session.execute(
-        select(DownloadJob)
-        .options(joinedload(DownloadJob.recording).joinedload(Recording.account))
-        .where(DownloadJob.status.not_in(("QUEUED", "RUNNING", "RETRY_WAIT")))
-        .order_by(DownloadJob.finished_at.desc(), DownloadJob.id.desc())
-        .limit(20)
+    workers = session.execute(
+        select(RuntimeWorker)
+        .order_by(RuntimeWorker.worker_name)
     ).scalars().all()
+    worker_by_recording = {worker.recording_id: worker for worker in workers}
+    job_views = []
+    for job in active_jobs:
+        worker = worker_by_recording.get(job.recording_id) if job.status == "RUNNING" else None
+        percent = min(100.0, worker.downloaded_bytes * 100 / worker.total_bytes) if worker and worker.total_bytes > 0 else 0.0
+        job_views.append({"job": job, "worker": worker, "percent": percent})
     return {
         "job_counts": counts,
         "queued_count": counts.get("QUEUED", 0) + counts.get("RETRY_WAIT", 0),
         "running_job_count": counts.get("RUNNING", 0),
-        "active_jobs": active_jobs,
-        "recent_jobs": recent_jobs,
+        "job_views": job_views,
+        "total_speed_bps": sum(worker.speed_bps for worker in workers),
         "queue_limit": 50,
     }
 
