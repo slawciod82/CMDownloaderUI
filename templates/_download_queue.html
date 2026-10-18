@@ -1,40 +1,53 @@
 <section class="mb-4" aria-labelledby="queue-heading">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div>
-      <h2 id="queue-heading" class="h5 mb-1">Download Manager · pending jobs</h2>
-      <div class="small text-body-secondary">Active and waiting jobs only. Completed operations appear in History.</div>
+      <h2 id="queue-heading" class="h5 mb-1">Download Manager</h2>
+      <div class="small text-body-secondary">Active transfers and pending jobs. Completed operations appear in History.</div>
     </div>
     <div class="d-flex flex-wrap gap-2">
       <span class="badge text-bg-primary">{{ running_job_count }} running</span>
-      <span class="badge text-bg-secondary">{{ queued_count }} waiting / retry</span>
-      {% if job_counts.get('FAILED', 0) %}
-      <span class="badge text-bg-danger">{{ job_counts['FAILED'] }} failed</span>
-      {% endif %}
+      <span class="badge text-bg-secondary">{{ job_counts.get('QUEUED', 0) }} queued</span>
+      <span class="badge text-bg-warning">{{ job_counts.get('RETRY_WAIT', 0) }} retry</span>
     </div>
   </div>
-  <div class="card shadow-sm">
-    <div class="card-body">
-      <h3 class="h6">Open jobs</h3>
-      {% if active_jobs %}
-      <div class="table-responsive">
-        <table class="table table-sm align-middle mb-0">
-          <thead><tr><th>Recording / account</th><th>Operation</th><th>State</th><th>Attempts</th><th>Next attempt</th></tr></thead>
-          <tbody>
-          {% for job in active_jobs %}
-          <tr>
-            <td><div class="fw-semibold">{{ job.recording.recording_name }}</div><div class="small text-body-secondary">{{ job.recording.account.name }} · #{{ job.recording_id }}</div></td>
-            <td>{{ job.operation }}</td>
-            <td><span class="badge {{ job.status|status_class }}">{{ job.status }}</span></td>
-            <td>{{ job.attempt_count }}</td>
-            <td>{{ job.next_attempt_at|localtime if job.status != 'RUNNING' else '—' }}</td>
-          </tr>
-          {% endfor %}
-          </tbody>
-        </table>
+  {% if job_views %}
+  <div class="vstack gap-3">
+    {% for item in job_views %}
+    {% set job = item.job %}
+    {% set worker = item.worker %}
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between gap-2 mb-2">
+          <div>
+            <div class="fw-semibold">{{ job.recording.recording_name }}</div>
+            <div class="small text-body-secondary">{{ job.recording.account.name }} · #{{ job.recording_id }} · {{ job.operation }} · attempt {{ job.attempt_count }}</div>
+          </div>
+          <span class="badge {{ job.status|status_class }}">{{ job.status }}</span>
+        </div>
+        {% if worker %}
+        <div class="progress mb-2" role="progressbar" aria-label="Download progress"
+             aria-valuenow="{{ item.percent }}" aria-valuemin="0" aria-valuemax="100">
+          <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: {{ item.percent }}%"></div>
+        </div>
+        <div class="d-flex flex-wrap justify-content-between gap-2 small">
+          <span>{{ "%.1f"|format(item.percent) }}% · {{ worker.downloaded_bytes|filesize }} / {{ worker.total_bytes|filesize }}</span>
+          <span>{{ worker.speed_bps|speed }}</span>
+        </div>
+        {% elif job.status == 'RUNNING' %}
+        <div class="small text-body-secondary">Processing task — transfer metrics not available for this operation.</div>
+        {% elif job.status == 'RETRY_WAIT' %}
+        <div class="small text-body-secondary">Next attempt {{ job.next_attempt_at|localtime }}</div>
+        {% else %}
+        <div class="small text-body-secondary">Waiting for an available download worker.</div>
+        {% endif %}
       </div>
-      {% if active_jobs|length == queue_limit %}<p class="small text-body-secondary mt-2 mb-0">Showing first {{ queue_limit }} open jobs.</p>{% endif %}
-      {% else %}<p class="text-body-secondary mb-0">Queue empty — no pending or running jobs.</p>{% endif %}
     </div>
+    {% endfor %}
   </div>
-
+  {% if job_views|length == queue_limit %}<p class="small text-body-secondary mt-2">Showing first {{ queue_limit }} open jobs.</p>{% endif %}
+  {% else %}
+  <div class="card shadow-sm">
+    <div class="card-body text-body-secondary">No active or pending downloads.</div>
+  </div>
+  {% endif %}
 </section>
