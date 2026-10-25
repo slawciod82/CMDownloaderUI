@@ -1,0 +1,47 @@
+<div class="mb-3">
+  <div class="small text-body-secondary">Recording</div>
+  <h3 class="h5 mb-1">{{ recording.recording_name }}</h3>
+  <span class="badge {{ recording.status|status_class }}">{{ recording.status }}</span>
+  {% if recording.attention_required %}<span class="badge text-bg-warning">Requires attention</span>{% endif %}
+</div>
+<h4 class="h6">Source identity · ClickMeeting</h4>
+<dl class="row small">
+  <dt class="col-sm-5">Local recording ID</dt><dd class="col-sm-7">{{ recording.id }}</dd>
+  <dt class="col-sm-5">Remote recording ID</dt><dd class="col-sm-7">{{ recording.recording_id }}</dd>
+  <dt class="col-sm-5">Conference ID</dt><dd class="col-sm-7">{{ recording.conference_id }}</dd>
+  <dt class="col-sm-5">Account</dt><dd class="col-sm-7">{{ recording.account.name }}</dd>
+  <dt class="col-sm-5">Recording start</dt><dd class="col-sm-7">{{ recording.recorded_at|localtime }}</dd>
+  <dt class="col-sm-5">Duration (ffprobe)</dt><dd class="col-sm-7">{{ recording.duration_seconds|recording_duration }}{% if recording.duration_seconds is not none %} <span class="text-body-secondary">({{ recording.duration_seconds }} s)</span>{% endif %}</dd>
+  <dt class="col-sm-5">Expected size</dt><dd class="col-sm-7">{{ recording.expected_size|filesize }}</dd>
+</dl>
+<hr>
+<h4 class="h6">Local asset &amp; processing</h4>
+<dl class="row small">
+  <dt class="col-sm-5">Local MP4 path</dt><dd class="col-sm-7 text-break">{{ recording.local_path or '—' }}</dd>
+  <dt class="col-sm-5">First discovered</dt><dd class="col-sm-7">{{ recording.first_seen_at|localtime }}</dd>
+  <dt class="col-sm-5">Last attempt</dt><dd class="col-sm-7">{{ recording.last_attempt_at|localtime }}</dd>
+  <dt class="col-sm-5">Processing finished</dt><dd class="col-sm-7">{{ recording.completed_at|localtime }}</dd>
+  <dt class="col-sm-5">Recording attempts</dt><dd class="col-sm-7">{{ recording.attempt_count }}</dd>
+  <dt class="col-sm-5">Resolution</dt><dd class="col-sm-7">{{ recording.resolution or '—' }}</dd>
+  <dt class="col-sm-5">Last error</dt><dd class="col-sm-7 text-break">{{ recording.last_error or '—' }}</dd>
+  {% if job %}
+  <dt class="col-sm-5">Download job</dt><dd class="col-sm-7">#{{ job.id }} · {{ job.operation }} · {{ job.status }}</dd>
+  <dt class="col-sm-5">Job attempts</dt><dd class="col-sm-7">{{ job.attempt_count }}</dd>
+  {% endif %}
+</dl>
+<hr>
+<h4 class="h6">Recent events</h4>
+{% if events %}
+<div class="table-responsive">
+  <table class="table table-sm">
+    <thead><tr><th>When</th><th>Event</th><th>Details</th></tr></thead>
+    <tbody>
+      {% for event in events %}
+      <tr><td class="text-nowrap">{{ event.created_at|localtime }}</td><td><span class="badge {{ event.event_type|status_class }}">{{ event.event_type }}</span></td><td class="text-break">{{ event.message }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if events|length == 30 %}<p class="small text-body-secondary">Showing 30 most recent events.</p>{% endif %}
+{% else %}<p class="text-body-secondary">No events recorded.</p>{% endif %}
+<p class="small text-body-secondary mb-0">NeoRepo mapping is not yet available in CMDownloader. Source IDs are preserved for future correlation; no relationship is inferred.</p>

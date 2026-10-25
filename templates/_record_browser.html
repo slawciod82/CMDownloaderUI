@@ -87,7 +87,7 @@
                 <td class="text-nowrap">{{ event.recording.duration_seconds|recording_duration }}</td>
                 <td>{{ event.recording.account.name }}</td>
                 <td><span class="badge {{ event.event_type|status_class }}">{{ event.event_type }}</span></td>
-                <td>{{ event.message }}</td>
+                <td><button type="button" class="btn btn-sm btn-outline-primary" hx-get="{{ url_for('recording_details', recording_pk=event.recording.id) }}" hx-target="#recording-details-body" hx-swap="innerHTML">Details</button></td>
             </tr>
             {% endfor %}
             </tbody>

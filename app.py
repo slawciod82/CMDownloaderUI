@@ -6,7 +6,7 @@ from pathlib import Path
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
-from flask import Flask, Response, render_template, request, url_for
+from flask import Flask, Response, abort, render_template, request, url_for
 from sqlalchemy import create_engine, select, func
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, joinedload
@@ -277,6 +277,32 @@ def index():
             )
     except OperationalError as exc:
         return database_error_response(exc, fragment=is_htmx)
+
+
+@app.get("/recordings/<int:recording_pk>/details")
+def recording_details(recording_pk: int):
+    """Read-only operator details; no ClickMeeting calls and no media access."""
+    try:
+        with Session(engine) as session:
+            recording = session.execute(
+                select(Recording)
+                .options(joinedload(Recording.account))
+                .where(Recording.id == recording_pk)
+            ).scalar_one_or_none()
+            if recording is None:
+                abort(404)
+            events = session.execute(
+                select(Event).where(Event.recording_id == recording_pk)
+                .order_by(Event.created_at.desc(), Event.id.desc()).limit(30)
+            ).scalars().all()
+            job = session.execute(
+                select(DownloadJob).where(DownloadJob.recording_id == recording_pk)
+            ).scalar_one_or_none()
+            return render_template(
+                "_recording_details.html", recording=recording, events=events, job=job
+            )
+    except OperationalError as exc:
+        return database_error_response(exc, fragment=True)
 
 
 @app.get("/current")
